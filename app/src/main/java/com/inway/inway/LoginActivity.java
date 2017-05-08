@@ -35,23 +35,28 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 import static android.Manifest.permission.READ_CONTACTS;
 
 public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<Cursor> {
 
     private static final int REQUEST_READ_CONTACTS = 0;
-    private final static String EMPLOYEE_SERVICE_URI = "http://inwayservice.azurewebsites.net/TestService.svc/GetMessage/";
+    private final static String EMPLOYEE_SERVICE_URI = "http://inwayservice.azurewebsites.net/BusDriverLogin.svc/TryLogin/";
 
     private static final String[] DUMMY_CREDENTIALS = new String[]{
             "foo@example.com:hello", "bar@example.com:world"
     };
 
+    private BusDriver driver = null;
+
     private UserLoginTask mAuthTask = null;
+    private RetrieveBusDriver driverLoginTask = null;
 
 
     private AutoCompleteTextView mEmailView;
@@ -90,43 +95,14 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
         mLoginFormView = findViewById(R.id.login_form);
         mProgressView = findViewById(R.id.login_progress);
 
-        try {
-
-            DefaultHttpClient client = new DefaultHttpClient();
-
-            HttpGet request = new HttpGet(EMPLOYEE_SERVICE_URI);
-
-            request.setHeader("Accept", "application/json");
-            request.setHeader("Content-type", "application/json");
-
-            HttpResponse response = client.execute(request);
-
-            HttpEntity entity = response.getEntity();
-
-            if(entity.getContentLength() != 0) {
-                Reader employeeReader = new InputStreamReader(response.getEntity().getContent());
-                char[] buffer = new char[(int) response.getEntity().getContentLength()];
-                employeeReader.read(buffer);
-                employeeReader.close();
-
-                JSONObject phoneCredential = new JSONObject(new String(buffer));
-
-
-
-                mPasswordView.setText(phoneCredential.getString("Login"));
+       // new RetrieveBusDriver().execute();
 
 //                tvEmployeeCode.setText("Code: " + employee.getString("EmployeeId"));
 //                tvName.setText("Name: " + employee.getString("FirstName") + " " + employee.getString("LastName"));
 //                tvAddress.setText("Address: " + employee.getString("Address"));
 //                tvBloodGroup.setText("Blood Group: " + employee.getString("BloodGroup"));
 
-            }
-        }
 
-        catch(Exception e){
-
-
-            }
 
 
     }
@@ -177,7 +153,7 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
 
 
     private void attemptLogin() {
-        if (mAuthTask != null) {
+        if (driverLoginTask != null) {
             return;
         }
 
@@ -186,7 +162,7 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
         mPasswordView.setError(null);
 
 
-        String email = mEmailView.getText().toString();
+        String login = mEmailView.getText().toString();
         String password = mPasswordView.getText().toString();
 
         boolean cancel = false;
@@ -199,38 +175,36 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
             cancel = true;
         }
 
-        // Check for a valid email address.
-        if (TextUtils.isEmpty(email)) {
+        // Check for a valid login.
+        if (TextUtils.isEmpty(login)) {
             mEmailView.setError(getString(R.string.error_field_required));
             focusView = mEmailView;
             cancel = true;
-        } else if (!isEmailValid(email)) {
+        } else if (!isEmailValid(login)) {
             mEmailView.setError(getString(R.string.error_invalid_email));
             focusView = mEmailView;
             cancel = true;
         }
 
         if (cancel) {
-            // There was an error; don't attempt login and focus the first
-            // form field with an error.
             focusView.requestFocus();
         } else {
             // Show a progress spinner, and kick off a background task to
             // perform the user login attempt.
             showProgress(true);
-            mAuthTask = new UserLoginTask(email, password);
-            mAuthTask.execute((Void) null);
+            driverLoginTask = new RetrieveBusDriver(login, password);
+            driverLoginTask.execute((Void) null);
         }
     }
 
     private boolean isEmailValid(String email) {
         //TODO: Replace this with your own logic
-        return email.contains("@");
+        return true;
     }
 
     private boolean isPasswordValid(String password) {
         //TODO: Replace this with your own logic
-        return password.length() > 4;
+        return true;
     }
 
     /**
@@ -376,5 +350,78 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
             showProgress(false);
         }
     }
+
+    //TODO: ShowProgress motherfucker yeah!
+
+    public class RetrieveBusDriver extends AsyncTask<Void, Void, BusDriver> {
+
+        private final String mLogin;
+        private final String mPassword;
+
+        RetrieveBusDriver(String login, String password) {
+            mLogin = login;
+            mPassword = password;
+        }
+
+
+        protected BusDriver doInBackground(Void... params) {
+            try {
+
+                if(android.os.Debug.isDebuggerConnected())
+                    android.os.Debug.waitForDebugger();
+
+                DefaultHttpClient client = new DefaultHttpClient();
+
+                String finalURI = EMPLOYEE_SERVICE_URI + "?login="+mLogin+"&?password="+mPassword;
+
+                HttpGet request = new HttpGet(finalURI);
+
+                request.setHeader("Accept", "application/json");
+                request.setHeader("Content-type", "application/json");
+
+                HttpResponse response = client.execute(request);
+
+                HttpEntity entity = response.getEntity();
+
+                if (entity.getContentLength() != 0) {
+                    Reader employeeReader = new InputStreamReader(response.getEntity().getContent());
+                    char[] buffer = new char[(int) response.getEntity().getContentLength()];
+                    employeeReader.read(buffer);
+                    employeeReader.close();
+
+                    JSONObject phoneCredential = new JSONObject(new String(buffer));
+
+                    BusDriver driver = new BusDriver();
+
+                    driver.login = phoneCredential.getString("Login");
+                    driver.busDriverId = Integer.parseInt(phoneCredential.getString("BusDriverId"));
+                    return driver;
+                }
+                return null;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        protected void onPostExecute(BusDriver busDriver) {
+
+            driverLoginTask = null;
+            showProgress(false);
+
+            if (busDriver.busDriverId != -1) {
+                finish();
+            } else {
+                mPasswordView.setError(getString(R.string.error_incorrect_password));
+                mPasswordView.requestFocus();
+            }
+
+            //driver = busDriver;
+
+            //mPasswordView.setText(driver.login);
+
+        }
+
+    }
+
 }
 
