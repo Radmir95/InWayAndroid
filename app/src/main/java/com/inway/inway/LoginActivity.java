@@ -3,6 +3,7 @@ package com.inway.inway;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.annotation.TargetApi;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
@@ -34,13 +35,10 @@ import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.json.JSONObject;
-
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 import static android.Manifest.permission.READ_CONTACTS;
 
@@ -49,15 +47,7 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
     private static final int REQUEST_READ_CONTACTS = 0;
     private final static String EMPLOYEE_SERVICE_URI = "http://inwayservice.azurewebsites.net/BusDriverLogin.svc/TryLogin/";
 
-    private static final String[] DUMMY_CREDENTIALS = new String[]{
-            "foo@example.com:hello", "bar@example.com:world"
-    };
-
-    private BusDriver driver = null;
-
-    private UserLoginTask mAuthTask = null;
     private RetrieveBusDriver driverLoginTask = null;
-
 
     private AutoCompleteTextView mEmailView;
     private EditText mPasswordView;
@@ -80,6 +70,7 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
                     attemptLogin();
                     return true;
                 }
+
                 return false;
             }
         });
@@ -94,15 +85,6 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
 
         mLoginFormView = findViewById(R.id.login_form);
         mProgressView = findViewById(R.id.login_progress);
-
-       // new RetrieveBusDriver().execute();
-
-//                tvEmployeeCode.setText("Code: " + employee.getString("EmployeeId"));
-//                tvName.setText("Name: " + employee.getString("FirstName") + " " + employee.getString("LastName"));
-//                tvAddress.setText("Address: " + employee.getString("Address"));
-//                tvBloodGroup.setText("Blood Group: " + employee.getString("BloodGroup"));
-
-
 
 
     }
@@ -137,20 +119,16 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
         return false;
     }
 
-    /**
-     * Callback received when a permissions request has been completed.
-     */
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
         if (requestCode == REQUEST_READ_CONTACTS) {
             if (grantResults.length == 1 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 populateAutoComplete();
+
             }
         }
     }
-
-
 
     private void attemptLogin() {
         if (driverLoginTask != null) {
@@ -161,27 +139,14 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
         mEmailView.setError(null);
         mPasswordView.setError(null);
 
-
         String login = mEmailView.getText().toString();
         String password = mPasswordView.getText().toString();
 
         boolean cancel = false;
         View focusView = null;
 
-        // Check for a valid password, if the user entered one.
-        if (!TextUtils.isEmpty(password) && !isPasswordValid(password)) {
-            mPasswordView.setError(getString(R.string.error_invalid_password));
-            focusView = mPasswordView;
-            cancel = true;
-        }
-
-        // Check for a valid login.
         if (TextUtils.isEmpty(login)) {
             mEmailView.setError(getString(R.string.error_field_required));
-            focusView = mEmailView;
-            cancel = true;
-        } else if (!isEmailValid(login)) {
-            mEmailView.setError(getString(R.string.error_invalid_email));
             focusView = mEmailView;
             cancel = true;
         }
@@ -195,16 +160,6 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
             driverLoginTask = new RetrieveBusDriver(login, password);
             driverLoginTask.execute((Void) null);
         }
-    }
-
-    private boolean isEmailValid(String email) {
-        //TODO: Replace this with your own logic
-        return true;
-    }
-
-    private boolean isPasswordValid(String password) {
-        //TODO: Replace this with your own logic
-        return true;
     }
 
     /**
@@ -295,63 +250,18 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
 
         int ADDRESS = 0;
         int IS_PRIMARY = 1;
+
     }
 
 
-    public class UserLoginTask extends AsyncTask<Void, Void, Boolean> {
 
-        private final String mEmail;
-        private final String mPassword;
+    public void redirectToToursActivity(){
 
-        UserLoginTask(String email, String password) {
-            mEmail = email;
-            mPassword = password;
-        }
+        Intent intent = new Intent(this, ToursActivity.class);
+        startActivity(intent);
 
-        @Override
-        protected Boolean doInBackground(Void... params) {
-
-
-            try {
-
-                Thread.sleep(2000);
-            } catch (InterruptedException e) {
-                return false;
-            }
-
-            for (String credential : DUMMY_CREDENTIALS) {
-                String[] pieces = credential.split(":");
-                if (pieces[0].equals(mEmail)) {
-
-                    return pieces[1].equals(mPassword);
-                }
-            }
-
-
-            return true;
-        }
-
-        @Override
-        protected void onPostExecute(final Boolean success) {
-            mAuthTask = null;
-            showProgress(false);
-
-            if (success) {
-                finish();
-            } else {
-                mPasswordView.setError(getString(R.string.error_incorrect_password));
-                mPasswordView.requestFocus();
-            }
-        }
-
-        @Override
-        protected void onCancelled() {
-            mAuthTask = null;
-            showProgress(false);
-        }
     }
 
-    //TODO: ShowProgress motherfucker yeah!
 
     public class RetrieveBusDriver extends AsyncTask<Void, Void, BusDriver> {
 
@@ -410,14 +320,12 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
 
             if (busDriver.busDriverId != -1) {
                 finish();
+                redirectToToursActivity();
+
             } else {
                 mPasswordView.setError(getString(R.string.error_incorrect_password));
                 mPasswordView.requestFocus();
             }
-
-            //driver = busDriver;
-
-            //mPasswordView.setText(driver.login);
 
         }
 
